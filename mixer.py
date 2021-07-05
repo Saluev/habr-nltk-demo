@@ -2,6 +2,8 @@ from dataclasses import dataclass
 import sys
 from typing import List
 
+import nltk
+
 
 Tag = str
 
@@ -13,7 +15,7 @@ class TaggedToken:
 
 
 def tokenize_text(text: str) -> List[str]:
-    ...
+    return nltk.word_tokenize(text)
 
 
 def tag_tokens(tokens: List[str]) -> List[TaggedToken]:
