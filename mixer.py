@@ -19,7 +19,10 @@ def tokenize_text(text: str) -> List[str]:
 
 
 def tag_tokens(tokens: List[str]) -> List[TaggedToken]:
-    ...
+    return [
+        TaggedToken(text=token, tag=tag)
+        for token, tag in nltk.pos_tag(tokens)
+    ]
 
 
 def shuffle_tokens(tokens: List[TaggedToken]) -> List[TaggedToken]:
