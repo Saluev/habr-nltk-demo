@@ -1,6 +1,8 @@
+import argparse
 from collections import defaultdict
 from dataclasses import dataclass
 import random
+import subprocess
 import sys
 from typing import List, MutableMapping, Set
 
@@ -28,6 +30,18 @@ def tag_tokens(tokens: List[str]) -> List[TaggedToken]:
     ]
 
 
+def tokenize_and_tag_text(text: str) -> List[TaggedToken]:
+    output = subprocess.run("cmd/tree-tagger-russian",
+                            cwd="treetagger",
+                            input=text.encode("utf-8"),
+                            capture_output=True).stdout.decode("utf-8")
+    result = []
+    for line in output.strip().split("\n"):
+        text, tag, _ = line.split("\t")
+        result.append(TaggedToken(text=text, tag=tag))
+    return result
+
+
 def calc_private_nouns_set(tokens: List[TaggedToken]) -> Set[str]:
     result = set()
     for prev_token, token in zip([TaggedToken(".", ".")] + tokens, tokens):
@@ -42,6 +56,7 @@ DONT_MIX_WORDS = {
     "have", "had",
 }
 DONT_MIX_MARKER = "DONT_MIX"
+DONT_MIX_TAGS = {DONT_MIX_MARKER, "-"}
 
 
 def shuffle_tokens(tokens: List[TaggedToken]) -> List[TaggedToken]:
@@ -57,7 +72,7 @@ def shuffle_tokens(tokens: List[TaggedToken]) -> List[TaggedToken]:
         index_to_subindex[idx] = len(tokens_by_tag[token.tag])
         tokens_by_tag[token.tag].append(token)
     for tag, curr_tokens in tokens_by_tag.items():
-        if tag != DONT_MIX_MARKER:
+        if tag not in DONT_MIX_TAGS:
             random.shuffle(curr_tokens)
     return [
         tokens_by_tag[index_to_tag[idx]][index_to_subindex[idx]]
@@ -80,9 +95,16 @@ def detokenize_tokens(tokens: List[TaggedToken], private_nouns: Set[str]) -> str
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Shuffle words in text.")
+    parser.add_argument("--tagger", type=str, default="nltk", choices=["nltk", "treetagger"])
+    args = parser.parse_args()
+
     input_text = "".join(sys.stdin)
-    tokens = tokenize_text(input_text)
-    tagged_tokens = tag_tokens(tokens)
+    if args.tagger == "nltk":
+        tokens = tokenize_text(input_text)
+        tagged_tokens = tag_tokens(tokens)
+    elif args.tagger == "treetagger":
+        tagged_tokens = tokenize_and_tag_text(input_text)
     private_nouns = calc_private_nouns_set(tagged_tokens)
     sys.stderr.write(f"Tagged tokens:\n{tagged_tokens!r}")
     shuffled_tokens = shuffle_tokens(tagged_tokens)
